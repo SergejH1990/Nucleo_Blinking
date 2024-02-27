@@ -16,11 +16,26 @@
  ******************************************************************************
  */
 
+#define DELAY_COUNT ( 480000 )   /* delay count */
+
+void clockConfig(void);
+
+#define SYSCLOCK (180)
 
 #include <mcalFlash.h>
+#include <mcalGPIO.h>
+#include <mcalRCC.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
+
+static void delay(const int cycleCount)
+{
+    const int cycleIndex = cycleCount % 5;
+    int delayCount = DELAY_COUNT * cycleIndex;
+    for( uint32_t i=0; i<=delayCount; i++ );
+}
+
 
 #if !defined(__SOFT_FP__) && defined(__ARM_FP)
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
@@ -28,6 +43,38 @@
 
 int main(void)
 {
-    /* Loop forever */
-	while(1);
+    gpioSelectPort(GPIOA);
+    gpioSelectPinMode(GPIOA, PIN5, OUTPUT);
+
+    clockConfig();
+    int variableDelayCount = 0;
+	while(1)
+	{
+		gpioSetPin(GPIOA, PIN5);
+		delay(variableDelayCount);
+		/* Turn OFF the LED of PC13 */
+		gpioResetPin(GPIOA, PIN5);
+		delay(variableDelayCount);
+		variableDelayCount++;
+	}
+}
+
+void clockConfig(void)
+{
+	uint8_t pllInputFreq = HSE_VALUE;
+	uint16_t sysclk = SYSCLOCK;
+
+	flashConfigWaitStates(sysclk);
+
+	rccEnableHSE();
+	rccSelectSysclkSrc(SYSCLKSRC_PLLP);
+	rccSelectPLLClockSource(PLL_SRC_HSE);
+
+	rccSetSysclkFreq(pllInputFreq, sysclk);
+
+	rccSetAHBPrescaler(SYSCLK_DIV_1);
+	rccSetAPB1Prescaler(AHB_DIV_1);
+	rccSetAPB2Prescaler(AHB_DIV_2);
+
+	rccEnableMainPLL();
 }
